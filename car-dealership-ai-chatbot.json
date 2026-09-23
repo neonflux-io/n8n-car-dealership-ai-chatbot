@@ -1,0 +1,5003 @@
+{
+  "name": "Chatter V2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Chatteraiv2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -5780,
+        4340
+      ],
+      "id": "c9e4fbc1-0781-4042-9b07-f42aa65dbd7c",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://services.leadconnectorhq.com/conversations/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "contactId",
+              "value": "={{ $json.body.customData.contactId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5360,
+        4340
+      ],
+      "id": "e3eeb371-14f4-40af-b31c-4a15d891dd9e",
+      "name": "Get Message",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/conversations/{{ $json.conversations[0].id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5160,
+        4340
+      ],
+      "id": "5ecf16c3-f7db-4a32-8a6b-1ba770e66af2",
+      "name": "Get Conversations",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const newItems = [];\nnewItems.push({\n    json: {\n        conversations: JSON.stringify($input.first().json)\n    },\n    pairedItem: 0\n});\n\n// If you want to see the data structure while debugging\nconsole.log('Input data:', JSON.stringify($input.first().json, null, 2));\n\nreturn newItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4920,
+        4320
+      ],
+      "id": "dbab2e73-85ea-43fc-9211-f3fec1d5350d",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2600,
+        4440
+      ],
+      "id": "1e8d8ee4-c1ad-4966-ad4f-37cc20881acc",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the \"body\" of each message in the provided conversation and arrange them in chronological order. Use the following format for the output:\n\n[Timestamp] - [Sender]: [Message body]\n\nFor example:\n12:01 pm - Customer: this is a test message\n12:05 pm - Sales: this is a test reply\n\nInstructions:\nOnly use the \"body\" of each message to construct the conversation.\nEnsure the messages are ordered chronologically based on their timestamps.\nReturn the output in the exact format shown above.\nIf no conversation is found, return exactly: \"No conversation found.\"\n\nThis is the conversation that needs conversion:\n{{ $('Code').item.json.conversations }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -4280,
+        4320
+      ],
+      "id": "13a0209c-8fbe-4d53-950f-d3d403179672",
+      "name": "Format Message"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond. Use the last message sent by customer and to understand the context review the conversation history.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -2600,
+        4260
+      ],
+      "id": "64b8d44a-0aaa-4aba-87b2-47c6b471f8fe",
+      "name": "Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -3940,
+        4520
+      ],
+      "id": "4d9585ed-cb5d-44e3-ab83-e9a957449c17",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2480,
+        3980
+      ],
+      "id": "b614a152-2cbb-402f-ba77-ccdcafefa725",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the last customer message and the conversation history to determine if the customer is asking a vehicle-related questions or wants to know about a specific vehicle. Follow these exact rules:\n\nReturn \"true\" if any of the following conditions are met:\nThe last message mentions specific vehicle details (e.g., make, model, year, price, features).\nThe last message asks about the availability of a specific vehicle.\nThe conversation history shows an ongoing discussion about a specific vehicle.\nThe last message includes questions about vehicle specifications, condition, or pricing.\n\nReturn \"false\" if any of the following conditions are met:\nThe message is about general dealership information (e.g., hours, location, contact info).\nThe message is about service, maintenance, or repairs.\nThe message is a scheduling request (e.g., appointments, test drives, service bookings).\nThe message asks generic availability questions without mentioning specific vehicles.\nThe message is about warranty or financing without specific vehicle context.\nThe message is a general greeting or small talk.\nThe message mentions the customer’s location or plans to visit the dealership.\n\nExamples where you should return \"true\":\n\"Do you have any Honda Civics in stock?\"\n\"What's the mileage on that 2019 Ford F-150?\"\n\"Is the black Toyota Camry still available?\"\n\"How much is the Mercedes C300?\"\n\"Do you have the stock number 21956?\"\n\nExamples where you should return \"false\":\n\"What are your business hours?\"\n\"Can I schedule a test drive?\"\n\"What's your phone number?\"\n\"I would like to come by and test drive at 10 am tomorrow.\"\n\nThis is the last customer message sent:\n{{ $node['Webhook'].json.body.customData.lastmessage }}\n\nFor context, here is the conversation history:\n{{ $json.output }}\n\nRespond with exactly \"true\" or \"false\" without any additional text.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -3960,
+        4320
+      ],
+      "id": "e1f2c765-2f1f-4f83-800c-a05c20736ea0",
+      "name": "Car Detector"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an automotive expert. Identify if the customer is providing you the year, make, model or stock number.\n\nIf the customer provided you the year, make or model, your output should be \"YMM\".\n\nIf it is stock number it should be \"STOCK\".\n\nyour response is used in an automation, so it is important to only respond with the information needed.\n\nAn example of year, make or model is: 2020 Ford Expedition\n\nAn example of stock numbers are:\n- 12548\n- 12548CO\n- TI12548\n\nThis is the last message of the customer:\n{{ $('Webhook').item.json.body.customData.lastmessage }}\n\nFor context, here is the conversation history:\n {{ $('Format Message').item.json.output }}\n\nTo give you context about our inventory, this is our inventory:\n{{ $json.formattedData }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -2500,
+        3780
+      ],
+      "id": "2e578c70-3203-45ba-b0f4-7dcff95d1f5b",
+      "name": "YMM or STOCK?"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -3300,
+        4640
+      ],
+      "id": "3e4cb89b-b058-4c6b-9cda-2877a2c63dbe",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "41c29606-3b89-4caf-a209-5ce37f6179f3",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3600,
+        4320
+      ],
+      "id": "e9602155-e66c-4523-aa21-c3b2856d43a0",
+      "name": "Car Booking: T or F"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "633e6681-8f81-4f33-8875-ae63bebaf605",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "general",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2960,
+        4460
+      ],
+      "id": "856ea06f-592f-47f5-b666-dccf28f1557c",
+      "name": "book or general"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2600,
+        4860
+      ],
+      "id": "9b3f7098-05b7-4fc9-9bc8-f119f7f0e0da",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and Identify if the customer is booking for an appointment or general inquiry.\n\nIf the customer is booking for an appointment, your output should be \"book\".\n\nIf not, your output should be \"general\".\n\nYour response is used in an automation, make sure to only respond what is relevant.\n\nYou can refer to the conversation here:\n {{ $('Format Message').item.json.output }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -3320,
+        4460
+      ],
+      "id": "bd39c34e-8ed0-4eaa-9086-9fb143df4c42",
+      "name": "Book or General",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and identify if the customer wants to book an appointment. It is crucial to check between the last customer message and the conversation to identify what the customer wants.\n\nIf you see the time and date, your output should be in ISO 8601 format in Easter Timezone.\n\nIf you see no appointment date and time, or it is out of business hours, the response is null.\n\nCustomers will be setting up an appointment in the future or the same day, make sure to verify the date first before booking.\n\nOur business hours in Eastern Timezone are:\nMonday to Friday 10 am to 8 pm. Saturday at 9 am to 8 pm. And Sunday from 12 noon to 6 pm.\n\nFor context, this is current time: {{$now}} - Convert in Eastern Timezone.\n\nYour response is being used in an automation, reply with only the formatted date and time no extra words or comments.\n\nHere's the last message of the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, here is the conversation history:\n{{ $node[\"Format Message\"].json.output }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -2600,
+        4680
+      ],
+      "id": "5b0bfde7-eeb4-4c33-a663-71df9b568cdd",
+      "name": "Time and Date available?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"type\": \"SMS\",\n    \"contactId\": \"{{ $('Webhook').item.json.body.customData.contactId }}\",\n    \"message\": \"{{ $('Analyze and Respond').item.json.output }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2280,
+        4260
+      ],
+      "id": "b119e68c-8d5f-4597-ba8d-62a3783c320c",
+      "name": "Reply General"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "897577f3-c420-498c-ab58-1396f68898c6",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2280,
+        4680
+      ],
+      "id": "09494e84-76d0-4390-9ad3-bef721c5a846",
+      "name": "Time/Date or Null"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9fad6bfb-3a3d-47cc-876b-1fdcb31033a3",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1960,
+        4840
+      ],
+      "id": "88a465a0-5324-4d84-94a0-c37dfb7645d0",
+      "name": "Start Time"
+    },
+    {
+      "parameters": {
+        "operation": "addToDate",
+        "magnitude": "={{ $json.output }}",
+        "timeUnit": "minutes",
+        "duration": 30,
+        "outputFieldName": "enddate",
+        "options": {
+          "includeInputFields": false
+        }
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        -1800,
+        4840
+      ],
+      "id": "714fa4a1-2724-4088-b16e-0005e88e29f0",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/calendars/events/appointments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "calendarId",
+              "value": "YOUR_GHL_CALENDAR_ID"
+            },
+            {
+              "name": "locationId",
+              "value": "={{ $('Webhook').item.json.body.location.id }}"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "startTime",
+              "value": "={{ $('Start Time').item.json.output }}"
+            },
+            {
+              "name": "endTime",
+              "value": "={{ $json.enddate }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('Webhook').item.json.body.customData.fname }} x Dealership AI"
+            },
+            {
+              "name": "meetingLocationType",
+              "value": "address"
+            },
+            {
+              "name": "appointmentStatus",
+              "value": "new"
+            },
+            {
+              "name": "assignedUserId",
+              "value": "={{ $('Webhook').item.json.body.customData.userid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1600,
+        4840
+      ],
+      "id": "7eed0a87-be8b-403d-a6bd-10926ca08cb4",
+      "name": "HTTP Request",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation.\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1940,
+        4480
+      ],
+      "id": "752421e1-900c-4382-ace8-0de4a22456c2",
+      "name": "AI Agent",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1940,
+        4680
+      ],
+      "id": "fb4db356-73d5-44ea-a132-d491750ecb6a",
+      "name": "OpenAI Chat Model6",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1620,
+        4480
+      ],
+      "id": "00cf32e2-947a-4ae5-a861-298ba067a4bd",
+      "name": "Reply Booking Inq"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1400,
+        5020
+      ],
+      "id": "4017da5c-7432-40d4-8dac-2fdfb9882f0a",
+      "name": "OpenAI Chat Model8",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Confirm the booking appointment of the customer. You can refer to the status below:\n{{ $json.status }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1420,
+        4840
+      ],
+      "id": "4fc2f7ba-cc57-4bf4-80d0-6a8c72589be4",
+      "name": "Booking confirmed",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1100,
+        4840
+      ],
+      "id": "7ec3c22c-f7a7-4e6e-acad-ca55a82d14e0",
+      "name": "Booking confirmed1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "65d879fe-d0a7-4f0c-a011-d1d0d536f3fd",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "YMM",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2120,
+        3780
+      ],
+      "id": "4b5d1344-58aa-4078-859c-892d3bb362a2",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1880,
+        3080
+      ],
+      "id": "d3f630a9-a445-4940-b831-2972388be119",
+      "name": "OpenAI Chat Model9",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract the following details from this query: Year, Make, Model, Trim, Exterior, and AdvertisingPrice. Make sure to get the information in order. If the customer did not provide it, do not add it. If the query is vague, suggest possible matches. Your response is used in an automation.\n\nAnalyze the given vehicle detail provided by the customer. Compare and return the vehicle name based on our inventory.\n\nExample:\nCustomer: \"I want to know about your Ford Lariat\"\n- Return Ford and Lariat. Do not assume the year and Model because we migh have multiple vehicles with the same make model or model trim.\n\nThis is the last message sent by the customer:\n{{ $('Webhook').item.json.body.customData.lastmessage }}\n\nFor Context, this is the conversation history:\n {{ $('Format Message').item.json.output }}\n\nFor our inventory context, you may refer information here:\n{{ $('Code13').item.json.formattedData }}",
+        "options": {
+          "systemMessage": "You are an automotive assistant expert. You are expted to know the vehicle makes, models and trims. If any are not given, return blank.\n\nHere are examples:\nYear: 2020\nMake: Ford\nModel:\nTrim: L\n\nYear: \nMake: Ford\nModel: Expedition"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1880,
+        2860
+      ],
+      "id": "2383646e-5aae-423b-aa50-c12ea618cd5d",
+      "name": "YMM"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items\nconst results = $input.all().map(item => {\n  // Extract the \"output\" field\n  const output = item.json.output;\n\n  // Split the output into lines and extract key-value pairs\n  const lines = output.split(\"\\n\");\n  const data = {};\n  lines.forEach(line => {\n    const [key, value] = line.split(\":\").map(str => str.trim());\n    data[key] = value;\n  });\n\n  // Return the structured data\n  return {\n    json: data\n  };\n});\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1420,
+        2420
+      ],
+      "id": "c0a70bd0-5a25-4e44-847c-a941f9502b07",
+      "name": "Y-M-M-T"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "aba969d0-5c76-4178-98e0-1495cb395f09",
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Make\"] && $json[\"Model\"] && $json.Trim}}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YearMakeModel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Make\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YearMake"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b59ebd06-8706-40e0-85c2-78fd84604938",
+                    "leftValue": "={{ $json[\"Make\"] && $json[\"Model\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "MakeModel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ad363b96-277c-4c06-9b1e-d35efdfe3b0b",
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Model\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YearModel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "06d32bc3-12a9-47fd-8227-6eac61299551",
+                    "leftValue": "={{ $json[\"Model\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Model"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "390d9465-03ea-4d49-834a-fdf3ee813942",
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Trim\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YearTrim"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "7532a6e3-2132-4c58-9b94-875dec127f9c",
+                    "leftValue": "{{ $json[\"Make\"] && $json[\"Trim\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "MakeTrim"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3f9573c7-0144-4f52-81b3-113a9f4c815d",
+                    "leftValue": "={{ $json[\"Model\"] && $json[\"Trim\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ModelTrim"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c6fbde4e-38e1-4ea7-a753-edca2dc61b20",
+                    "leftValue": "={{ $json.Trim }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Trim"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -700,
+        2300
+      ],
+      "id": "4c0a28ef-03d7-4386-80af-9739cb87356f",
+      "name": "Switch",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        360,
+        1780
+      ],
+      "id": "a775c5f8-58c2-43fd-8c90-493bde43ac4c",
+      "name": "OpenAI Chat Model10",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        340,
+        1620
+      ],
+      "id": "3d758a13-6c87-4cc7-962b-b34e3d1a7357",
+      "name": "YearMake: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        1620
+      ],
+      "id": "7943a02c-61cd-4f07-80ae-d410c8b1e524",
+      "name": "Year Make Response"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        1920
+      ],
+      "id": "9083d6ab-9804-4c7d-9d9d-fc4c35fbe1da",
+      "name": "Aggregate2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        1920
+      ],
+      "id": "021d8151-53df-4da0-a63c-c3d1826eca4d",
+      "name": "Code2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        380,
+        2080
+      ],
+      "id": "9eea06f6-ae4d-4896-99af-d11fb1c9719b",
+      "name": "OpenAI Chat Model11",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    {Year}=\"{{ $json.Year }}\",  \n    LOWER({Make})=LOWER(\"{{ $json.Make }}\")  \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -280,
+        1620
+      ],
+      "id": "9b1780fe-4f77-4231-bf76-ac344b1ffac8",
+      "name": "YearMake",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    LOWER({Make})=LOWER(\"{{ $json.Make }}\"),  \n    SEARCH(LOWER(\"{{ $json.Model}}\"), LOWER({Model})) > 0  \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -280,
+        1920
+      ],
+      "id": "05ef3906-98d1-4388-a095-4955199cb09f",
+      "name": "MakeModel",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        380,
+        1920
+      ],
+      "id": "9cf777c8-58be-40ea-a445-e4540672d16d",
+      "name": "MakeModel: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        1920
+      ],
+      "id": "40ca0f57-ea41-4fc3-83a6-3dcc258ee1b6",
+      "name": "MakeModel Response"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        2240
+      ],
+      "id": "946bff2d-2ee7-4cb3-b5de-ff52fe6b17ba",
+      "name": "Aggregate3",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        2240
+      ],
+      "id": "5fcde046-3315-4860-924e-f2f6f9fe9092",
+      "name": "Code3",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        2440
+      ],
+      "id": "bb5cafb2-027d-42ec-80aa-56e386f2bf03",
+      "name": "OpenAI Chat Model12",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    LOWER({Make})=LOWER(\"{{ $json.Year }}\"),  \n    SEARCH(LOWER(\"{{ $json.Model}}\"), LOWER({Model})) > 0  \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -280,
+        2240
+      ],
+      "id": "dcb32f88-22c4-45e6-ad66-717a5270de3a",
+      "name": "YearModel",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        2600
+      ],
+      "id": "e6ee35c7-1be6-4349-b168-730475b8e887",
+      "name": "Aggregate4",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        2600
+      ],
+      "id": "91defd3c-88c1-4161-89ab-fbe8b898456a",
+      "name": "Code4",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        2800
+      ],
+      "id": "3bce16f3-7a13-45df-bf9a-782789af3733",
+      "name": "OpenAI Chat Model13",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        0,
+        2920
+      ],
+      "id": "72f8a392-2642-44fe-ab9a-f75900fffaf9",
+      "name": "Aggregate5",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        2920
+      ],
+      "id": "e6750eb5-636e-442f-8fa8-1959bbcf65cf",
+      "name": "Code5",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        380,
+        3040
+      ],
+      "id": "7706df2e-34ff-4a78-b41a-296a58a811a4",
+      "name": "OpenAI Chat Model14",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(   \n    SEARCH(LOWER(\"{{ $json.Model}}\"), LOWER({Model})) > 0 \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -280,
+        2600
+      ],
+      "id": "4eab3172-42b4-4c5d-b699-791ee61afcfc",
+      "name": "Model",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    LOWER({Make})=LOWER(\"{{ $json.Year }}\"),  \n    LOWER({Model})=LOWER(\"{{ $json.Trim }}\")  \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -300,
+        2840
+      ],
+      "id": "43518adb-21cb-4f86-aab3-cae0509887f9",
+      "name": "YearTrim",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        40,
+        3120
+      ],
+      "id": "558e9bfd-91e0-4798-bfdf-3ce0f0587d6a",
+      "name": "Aggregate6",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        3120
+      ],
+      "id": "1cfbcbc5-a81a-4124-8512-111e2b9b99f0",
+      "name": "Code6",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        3240
+      ],
+      "id": "9ff359c3-f167-4988-afe5-7f8f5aedae3d",
+      "name": "OpenAI Chat Model15",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(\n    LOWER({Make})=LOWER(\"{{ $json.Make }}\"),\n    SEARCH(LOWER(\"{{ $json.Trim }}\"), LOWER({Trim})) > 0\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -260,
+        3040
+      ],
+      "id": "d0888b70-6fca-4321-b5fe-bd478b2f8ec6",
+      "name": "MakeTrim",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        40,
+        3380
+      ],
+      "id": "5b9f424d-f129-4cb5-a660-57ae061ff2c8",
+      "name": "Aggregate7",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        3380
+      ],
+      "id": "1bacbb6c-8211-4124-b093-9e3a40beb9c2",
+      "name": "Code7",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        3500
+      ],
+      "id": "57194377-e2d9-439d-b2dc-3f6a54abb8ef",
+      "name": "OpenAI Chat Model16",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    LOWER({Make})=LOWER(\"{{ $json.Model }}\"),  \n    SEARCH(LOWER(\"{{ $json.Trim }}\"), LOWER({Trim})) > 0 \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -260,
+        3300
+      ],
+      "id": "c764e17d-0522-4e1e-bd89-3310cb12cf19",
+      "name": "ModelTrim",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        40,
+        3640
+      ],
+      "id": "ca119276-d6c0-43dd-8f7f-6e3749fe12a0",
+      "name": "Aggregate8",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        3640
+      ],
+      "id": "59575fc5-d7a9-4a4b-9ed9-f16ad4022ddd",
+      "name": "Code8",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        3760
+      ],
+      "id": "d91e9f5f-9fe1-4da1-897d-86c9ce6714c3",
+      "name": "OpenAI Chat Model17",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract the following details from this query: Stock Number. If the query is vague, suggest possible matches. Your response is used in an automation, make sure to only repond with the relevant output.\n\nThis is the last message sent by the customer:\n{{ $('Webhook').item.json.body.customData.lastmessage }}\n\nFor Context, this is the conversation history:\n{{ $('Format Message').item.json.output }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1900,
+        3860
+      ],
+      "id": "e216ad84-0baf-4111-a67e-a6901d635ad1",
+      "name": "STOCK"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1880,
+        4040
+      ],
+      "id": "33d3eb9d-c212-431b-85b3-2bbd831eb37a",
+      "name": "OpenAI Chat Model18",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and return them unchanged\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        3860
+      ],
+      "id": "c946a0f0-fe30-4a96-be80-9079aa056d16",
+      "name": "Code9"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(   \n    SEARCH(LOWER(\"{{ $json.Trim }}\"), LOWER({Trim})) > 0  \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -260,
+        3560
+      ],
+      "id": "8f91e306-8bca-40b6-aa29-839c4d4b395f",
+      "name": "Trim",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            },
+            {
+              "fieldToAggregate": "Trim"
+            },
+            {
+              "fieldToAggregate": "AdvertisingPrice"
+            },
+            {
+              "fieldToAggregate": "Odometer"
+            },
+            {
+              "fieldToAggregate": "WebAdDescription"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        0,
+        240
+      ],
+      "id": "ef695f1d-792f-4fd6-bf73-3df2b0284558",
+      "name": "Aggregate9",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all()"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        240
+      ],
+      "id": "273f288b-7776-4c5f-b78f-fe5dfe4b0c6e",
+      "name": "Code10",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"type\": \"SMS\",\n    \"contactId\": \"{{ $('Webhook').item.json.body.customData.contactId }}\",\n    \"message\": \"{{ $json.output }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        240
+      ],
+      "id": "f800dd48-97bb-4efe-a5b3-630e03e922ae",
+      "name": "Year Make Response1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        420
+      ],
+      "id": "8322b56f-70d4-4141-9070-6bc3f2116b2b",
+      "name": "OpenAI Chat Model19",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    {Year}=\"{{ $json.Year }}\",  \n    LOWER({Make})=LOWER(\"{{ $json.Make }}\"),\n    LOWER({Model})=LOWER(\"{{ $json.Model }}\")\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        120
+      ],
+      "id": "020fd011-658d-4e59-abed-2d9207d07c08",
+      "name": "YMM1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(   \n    LOWER({StockNumber})=LOWER(\"{{ $json.Stock }}\")  \n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -1380,
+        3860
+      ],
+      "id": "12cc715a-6a77-4d45-af95-b723838ba548",
+      "name": "Stock",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "include": "specifiedFields",
+        "fieldsToInclude": "Year,Make,Model,AdvertisingPrice,Odometer,WebAdDescription",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        3860
+      ],
+      "id": "bb7b0b43-c5ce-4a81-a279-0d76032de032",
+      "name": "Aggregate10",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1060,
+        3860
+      ],
+      "id": "cc68d1a7-4a46-4452-add3-56f5cfec5eb1",
+      "name": "Code12",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -920,
+        4080
+      ],
+      "id": "b5c4b261-7c87-4a66-a8a1-ca2950e8db35",
+      "name": "OpenAI Chat Model7",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f72c114f-3030-4b12-a231-7c87511f50ad",
+              "name": "body.customData.contactId",
+              "value": "={{ $json.body.customData.contactId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5560,
+        4340
+      ],
+      "id": "5d5e0c2d-db67-458d-89ad-b4c4a237302c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -3340,
+        4160
+      ],
+      "id": "b15ebcc4-5f1d-498a-bc8e-06f888a17abc",
+      "name": "Airtable1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "include": "specifiedFields",
+        "fieldsToInclude": "Year,Make,Model,Trim,StockNumber",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -3200,
+        4160
+      ],
+      "id": "b7cb0a1f-b2b5-424a-8952-10b5bee2ea54",
+      "name": "Aggregate11"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input data from the first item's data array\nconst inputData = $input.all()[0].json.data;\n\n// Create a string representation of the data\nconst formattedData = JSON.stringify(inputData, null, 2);\n\n// Return as a properly formatted single item\nreturn [{\n  json: {\n    formattedData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3040,
+        4140
+      ],
+      "id": "85e7cdd9-a037-443c-9f29-05dd509ceb3c",
+      "name": "Code13"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        1620
+      ],
+      "id": "98f35d86-a908-41de-96f5-a4cb6a91b751",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        1620
+      ],
+      "id": "e3392038-08e5-4710-929a-9bdc6d39e852",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        3640
+      ],
+      "id": "9611a674-9298-437f-be58-13116f923da8",
+      "name": "Trim: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        3380
+      ],
+      "id": "3cd59888-6ce7-4b12-94fc-cda80c8cfc77",
+      "name": "ModelTrim: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        3120
+      ],
+      "id": "d433ecc0-ea2f-4aac-843d-6dff57aecc76",
+      "name": "MakeTrim: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        440,
+        2920
+      ],
+      "id": "56c3d6af-ea45-4eea-a609-d9fca7934e39",
+      "name": "YearTrim: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        380,
+        2600
+      ],
+      "id": "c35af780-e37d-4227-8db4-5f3eb57a5c4a",
+      "name": "Model: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given the available vehicles and verify to the customer which specific vehicle are they looking for.\n\nMake sure to ask relevant Key Qualifying questions listed in the system prompt.\n\nThese are the available vehicle asked by the customer. If these are empty, there are possibility that they are filtered incorrectly in our inventory:\nYear:\n{{ $json.Year }}\nMake:\n{{ $json.Make }}\nModel:\n{{ $json.Model }}\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        380,
+        2240
+      ],
+      "id": "268ac5ea-9275-49ec-a9ca-039329a45c64",
+      "name": "YearModel: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        2240
+      ],
+      "id": "22292a17-0ca4-4200-a1c0-a33905f9c2bf",
+      "name": "Year Model Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        2600
+      ],
+      "id": "7a325048-6d33-4241-8705-9087e8ad91c6",
+      "name": "Model Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        2920
+      ],
+      "id": "70cbc980-ea21-4137-9f5f-e675eace8184",
+      "name": "Year Trim Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        3120
+      ],
+      "id": "de5f4798-ee0d-48f7-abf3-6697fb14578e",
+      "name": "Make Trim Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        3380
+      ],
+      "id": "141da554-d25c-4090-bb48-c36880da1235",
+      "name": "Model Trim Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $('Webhook').item.json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        3640
+      ],
+      "id": "34283ff8-8c2c-4616-b523-d075f5aa9ab3",
+      "name": "Trim Response"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given available information that you can provide to the customer.\n\nBelow are the details:\nVehicle: {{ $json.data[0].Year }} {{ $json.data[0].Make }} {{ $json.data[0].Model }}\nPrice: {{ $json.data[0].AdvertisingPrice }}\nMileage: {{ $('Aggregate10').item.json.data[0].Odometer }}\nDescription:\n{{ $('Aggregate10').item.json.data[0].WebAdDescription }}\n\nI want you to summarize the vehicle description highlighting the dealer service history, value of the service made, warranty and maintenance plan.\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -920,
+        3860
+      ],
+      "id": "bd34d3d0-5f9a-4751-9a4c-c6faaa789256",
+      "name": "Stock Analyze and Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "SMS"
+            },
+            {
+              "name": "contactId",
+              "value": "={{ $node['Webhook'].json.body.customData.contactId }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -580,
+        3860
+      ],
+      "id": "ca479e34-e11a-46f7-94d4-d63b6f6ca7ea",
+      "name": "Stock Response"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given available information that you can provide to the customer.\n\nBelow are the details:\nVehicle: {{ $('Aggregate9').item.json.Year[0] }} {{ $('Aggregate9').item.json.Make[0] }} {{ $('Aggregate9').item.json.Model[0] }}\nPrice: {{ $('Aggregate9').item.json.AdvertisingPrice[0] }}\nMileage: {{ $('Aggregate9').item.json.Odometer[0] }}\nDescription:\n{{ $('Aggregate9').item.json.WebAdDescription[0] }}\n\nMake sure to provide the year make model, advertising price and mileage. As for the description, I want you to summarize the vehicle description highlighting the dealer service history, value of the service made, warranty and maintenance plan. Avoid repeating information when you already see it in the conversation history.\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}\n",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        320,
+        240
+      ],
+      "id": "5a0a093d-0683-4bcd-9b09-c2c3728b3068",
+      "name": "YMM: Analyze and Respond1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f48276cd-ec1f-40f8-ae06-cbbe232d5034",
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Make\"] && $json[\"Model\"] && (!$json[\"Trim\"] || $json[\"Trim\"] === \"\") && (!$json[\"Exterior\"] || $json[\"Exterior\"] === \"\") && (!$json[\"AdvertisingPrice\"] || $json[\"AdvertisingPrice\"] === \"\") }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YMM"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Make\"] && $json[\"Model\"] && $json[\"Trim\"] && $json[\"Trim\"] !== \"\" && (!$json[\"Exterior\"] || $json[\"Exterior\"] === \"\") && (!$json[\"AdvertisingPrice\"] || $json[\"AdvertisingPrice\"] === \"\") }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YMMT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "abc81b27-00ac-4674-9fbe-0c9c8dbd41de",
+                    "leftValue": "={{ $json[\"Year\"] && $json[\"Make\"] && $json[\"Model\"] && $json[\"Trim\"] && $json[\"Trim\"] !== \"\" && $json[\"Exterior\"] && $json[\"AdvertisingPrice\"] }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "YMMTEP"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -580,
+        1040
+      ],
+      "id": "05f5e73a-9686-477e-a758-641e4f33585d",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c08e24c5-f0c2-46c8-81eb-59e85ecab96d",
+              "leftValue": "={{ $('YMM1').item >=2 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        120
+      ],
+      "id": "82b9cbdd-6661-4ff0-86e5-011aa20f207d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            },
+            {
+              "fieldToAggregate": "Trim"
+            },
+            {
+              "fieldToAggregate": "AdvertisingPrice"
+            },
+            {
+              "fieldToAggregate": "ExteriorColor"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        60,
+        580
+      ],
+      "id": "56f8349b-0494-45c0-8b74-19b9d10fa121",
+      "name": "Aggregate12",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  data: $input.all()\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        580
+      ],
+      "id": "7c3b6afb-7a5f-48b5-9e65-1c47ce9aeae8",
+      "name": "Code14",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"type\": \"SMS\",\n    \"contactId\": \"{{ $('Webhook').item.json.body.customData.contactId }}\",\n    \"message\": \"{{ $json.output }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        580
+      ],
+      "id": "8dc28044-05af-457f-bef8-59f2169ee84d",
+      "name": "Year Make Response2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        740
+      ],
+      "id": "52aa167f-7150-452e-a7d1-fc04f686c0dd",
+      "name": "OpenAI Chat Model20",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given available information that you can provide to the customer.\n\nVerify which vehicle the customer was trying to inquire. Ask for the exterior color and advertising price.\n\nThese are the vehicle information gathered:\nYear: {{ $json.data[0].json.Year }}\nMake: {{ $json.data[0].json.Make }}\nModel: {{ $json.data[0].json.Model }}\nTrim: {{ $json.data[0].json.Trim }}\nAdvertising Price: {{ $json.data[0].json.AdvertisingPrice }}\nExterior: {{ $json.data[0].json.ExteriorColor }}\n\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        400,
+        580
+      ],
+      "id": "81fd565a-d253-4918-a31a-9b8afa96fff1",
+      "name": "YMM: Analyze and Respond"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c08e24c5-f0c2-46c8-81eb-59e85ecab96d",
+              "leftValue": "={{ $('YMMT').item >=2 }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -200,
+        620
+      ],
+      "id": "31e1a8d0-2e5c-4ea2-83a1-76465eb0ec33",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            },
+            {
+              "fieldToAggregate": "Trim"
+            },
+            {
+              "fieldToAggregate": "AdvertisingPrice"
+            },
+            {
+              "fieldToAggregate": "Odometer"
+            },
+            {
+              "fieldToAggregate": "WebAdDescription"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        60,
+        860
+      ],
+      "id": "b80e373b-ba68-4d96-bd93-4903d62f2e52",
+      "name": "Aggregate13",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  data: $input.all()\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        860
+      ],
+      "id": "f2f6423d-f3bb-4ae7-ac5c-e522408039d4",
+      "name": "Code15",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"type\": \"SMS\",\n    \"contactId\": \"{{ $('Webhook').item.json.body.customData.contactId }}\",\n    \"message\": \"{{ $json.output }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        860
+      ],
+      "id": "aee995f3-e3c0-42ce-8300-1452d0570c8e",
+      "name": "Year Make Response3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        380,
+        1040
+      ],
+      "id": "07eb093b-40f5-4325-b773-e40f56835fe9",
+      "name": "OpenAI Chat Model21",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given available information that you can provide to the customer.\n\nBelow are the details:\nVehicle: {{ $('Aggregate13').item.json.Year[0] }} {{ $('Aggregate13').item.json.Make[0] }} {{ $('Aggregate13').item.json.Model[0] }}\nPrice: {{ $('Aggregate13').item.json.AdvertisingPrice[0] }}\nMileage: {{ $('Aggregate13').item.json.Odometer[0] }}\nDescription:\n{{ $('Aggregate13').item.json.WebAdDescription[0] }}\n\nMake sure to provide the year make model, advertising price and mileage. As for the description, I want you to summarize the vehicle description highlighting the dealer service history, value of the service made, warranty and maintenance plan. Avoid repeating information when you already see it in the conversation history.\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        380,
+        860
+      ],
+      "id": "f4aef245-9f44-40f5-82f0-b26a4a2b45fd",
+      "name": "YMM: Analyze and Respond2"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            },
+            {
+              "fieldToAggregate": "Trim"
+            },
+            {
+              "fieldToAggregate": "AdvertisingPrice"
+            },
+            {
+              "fieldToAggregate": "ExteriorColor"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bab0c3e5-74fe-4d1a-9a17-4c0efa70a905",
+      "name": "Aggregate14",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  data: $input.all()\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        0
+      ],
+      "id": "d89cc69b-9ace-4a10-a27d-ef6face48737",
+      "name": "Code16",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"type\": \"SMS\",\n    \"contactId\": \"{{ $('Webhook').item.json.body.customData.contactId }}\",\n    \"message\": \"{{ $json.output }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        0
+      ],
+      "id": "a01076b5-3f61-49ba-9a21-cb4cdd741b37",
+      "name": "Year Make Response4"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        360,
+        160
+      ],
+      "id": "e82cd02e-186c-4745-a78a-e6920955afbc",
+      "name": "OpenAI Chat Model22",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given available information that you can provide to the customer.\n\nVerify which vehicle the customer was trying to inquire. Ask for the exterior color and advertising price.\n\nThese are the vehicle information gathered:\nYear: {{ $json.data[0].json.Year }}\nMake: {{ $json.data[0].json.Make }}\nModel: {{ $json.data[0].json.Model }}\nTrim: {{ $json.data[0].json.Trim }}\nAdvertising Price: {{ $json.data[0].json.AdvertisingPrice }}\nExterior: {{ $json.data[0].json.ExteriorColor }}\n\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        340,
+        0
+      ],
+      "id": "e3228b88-1418-4ca4-9395-d3da863f427e",
+      "name": "YMM: Analyze and Respond3"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND({Year}=\"{{ $json.Year }}\",{Make}=\"{{ $json.Make }}\",{Model}=\"{{ $json.Model }}\",{Trim}=\"{{ $json.Trim }}\")",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -360,
+        620
+      ],
+      "id": "c059bc80-6b64-43fa-80df-46832acb3334",
+      "name": "YMMT",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "CarInventory - Sheet1.csv",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Imported table",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "filterByFormula": "=AND(  \n    {Year}=\"{{ $node['Y-M-M-T'].json.Year }}\", \n    LOWER({Make})=LOWER(\"{{ $node['Y-M-M-T'].json.Make }}\"),\n    LOWER({Model})=LOWER(\"{{ $node['Y-M-M-T'].json.Model }}\"),\n    LOWER({Trim})=LOWER(\"{{ $node['Y-M-M-T'].json.Trim }}\"),\n    LOWER({ExteriorColor})=LOWER(\"{{ $node['Y-M-M-T'].json.Exterior}}\"),\n    LOWER({AdvertisingPrice})=LOWER(\"{{ $node['Y-M-M-T'].json.AdvertisingPrice }}\")\n)",
+        "options": {
+          "fields": [
+            "Year",
+            "Make",
+            "Model",
+            "Trim",
+            "Odometer",
+            "ExteriorColor",
+            "AdvertisingPrice",
+            "WebAdDescription"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        1220
+      ],
+      "id": "fe2730f2-5ddb-41e0-bbb0-ed90683d30c3",
+      "name": "YMMT1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "jnlgXGJb3juJBtmj",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Year"
+            },
+            {
+              "fieldToAggregate": "Make"
+            },
+            {
+              "fieldToAggregate": "Model"
+            },
+            {
+              "fieldToAggregate": "Trim"
+            },
+            {
+              "fieldToAggregate": "AdvertisingPrice"
+            },
+            {
+              "fieldToAggregate": "Odometer"
+            },
+            {
+              "fieldToAggregate": "WebAdDescription"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        1220
+      ],
+      "id": "2b71f398-59a2-4bb8-8740-6a684a2eb5b7",
+      "name": "Aggregate15",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  data: $input.all()\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        1220
+      ],
+      "id": "4bfb3881-8709-4349-a060-ba06a3f949b8",
+      "name": "Code17",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-04-15"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GHL_PRIVATE_INTEGRATION_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"type\": \"SMS\",\n    \"contactId\": \"{{ $('Webhook').item.json.body.customData.contactId }}\",\n    \"message\": \"{{ $json.output }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        580,
+        1220
+      ],
+      "id": "4e45a6b8-6bb2-4593-b134-d48e592f1a56",
+      "name": "Year Make Response5"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        1340
+      ],
+      "id": "8ba32220-e3a6-4759-b7c8-ab9ce99239c4",
+      "name": "OpenAI Chat Model23",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze and understand how to respond to the conversation. You will be given available information that you can provide to the customer.\n\nBelow are the details:\nVehicle: {{ $('Aggregate15').item.json.Year[0] }} {{ $('Aggregate15').item.json.Make[0] }} {{ $('Aggregate15').item.json.Model[0] }}\nPrice: {{ $('Aggregate15').item.json.AdvertisingPrice[0] }}\nMileage: {{ $('Aggregate15').item.json.Odometer[0] }}\nDescription:\n{{ $('Aggregate15').item.json.WebAdDescription[0] }}\n\nMake sure to provide the year make model, advertising price and mileage. As for the description, I want you to summarize the vehicle description highlighting the dealer service history, value of the service made, warranty and maintenance plan. Avoid repeating information when you already see it in the conversation history.\n\nMake sure to use your system prompt to assist customers effectively.\n\nCustomer details:\nName: {{ $node[\"Webhook\"].json.body.full_name }}\nPhone: {{ $node[\"Webhook\"].json.body.phone }}\n\nYour details:\nName: {{ $node['Webhook'].json.body.customData.username }}\n\nThis is the last message sent by the customer:\n{{ $node[\"Webhook\"].json.body.customData.lastmessage }}\n\nFor context, this is the conversation history:\n{{ $node['Format Message'].json.output }}",
+        "options": {
+          "systemMessage": "={{ $node[\"Prompt\"].json.content }}\n\n{{ $node[\"FAQ\"].json.content }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        260,
+        1220
+      ],
+      "id": "616564e0-5c07-4db5-940a-6d68aedc9c58",
+      "name": "YMM: Analyze and Respond4"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/YOUR_GOOGLE_DOC_ID/edit?usp=sharing"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -4700,
+        4320
+      ],
+      "id": "62ead156-0a94-4c92-8524-36e50ea58623",
+      "name": "Prompt",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "40yKIH9EwjtAKgWm",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/YOUR_GOOGLE_DOC_ID/edit?usp=sharing"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -4480,
+        4320
+      ],
+      "id": "0bccea05-3cb2-4dc9-b50c-6a24ab3e385e",
+      "name": "FAQ",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "40yKIH9EwjtAKgWm",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -4260,
+        4520
+      ],
+      "id": "8aad78cb-3021-40d0-8475-46be54f5ed11",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "MpclJJ1tq3H0wOSO",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Message": {
+      "main": [
+        [
+          {
+            "node": "Get Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversations": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message": {
+      "main": [
+        [
+          {
+            "node": "Car Detector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Reply General",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Car Detector",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM or STOCK?",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Car Detector": {
+      "main": [
+        [
+          {
+            "node": "Car Booking: T or F",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Book or General",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Car Booking: T or F": {
+      "main": [
+        [
+          {
+            "node": "Airtable1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Book or General",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book or general": {
+      "main": [
+        [
+          {
+            "node": "Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Time and Date available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Time and Date available?",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book or General": {
+      "main": [
+        [
+          {
+            "node": "book or general",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "book or general",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Time and Date available?": {
+      "main": [
+        [
+          {
+            "node": "Time/Date or Null",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Time/Date or Null": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Start Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Time": {
+      "main": [
+        [
+          {
+            "node": "Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Booking confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Reply Booking Inq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model8": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Booking confirmed",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking confirmed": {
+      "main": [
+        [
+          {
+            "node": "Booking confirmed1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM or STOCK?": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "YMM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "STOCK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model9": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM": {
+      "main": [
+        [
+          {
+            "node": "Y-M-M-T",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Y-M-M-T": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YearMake",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MakeModel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YearModel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YearTrim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MakeTrim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ModelTrim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model10": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YearMake: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YearMake: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Year Make Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate2": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "MakeModel: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model11": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "MakeModel: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YearMake": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MakeModel": {
+      "main": [
+        [
+          {
+            "node": "Aggregate2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MakeModel: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "MakeModel Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate3": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "YearModel: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model12": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YearModel: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YearModel": {
+      "main": [
+        [
+          {
+            "node": "Aggregate3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate4": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Model: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model13": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Model: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate5": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "YearTrim: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model14": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YearTrim: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model": {
+      "main": [
+        [
+          {
+            "node": "Aggregate4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YearTrim": {
+      "main": [
+        [
+          {
+            "node": "Aggregate5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate6": {
+      "main": [
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "MakeTrim: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model15": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "MakeTrim: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MakeTrim": {
+      "main": [
+        [
+          {
+            "node": "Aggregate6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate7": {
+      "main": [
+        [
+          {
+            "node": "Code7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code7": {
+      "main": [
+        [
+          {
+            "node": "ModelTrim: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model16": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "ModelTrim: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ModelTrim": {
+      "main": [
+        [
+          {
+            "node": "Aggregate7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate8": {
+      "main": [
+        [
+          {
+            "node": "Code8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code8": {
+      "main": [
+        [
+          {
+            "node": "Trim: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model17": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Trim: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model18": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "STOCK",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STOCK": {
+      "main": [
+        [
+          {
+            "node": "Code9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trim": {
+      "main": [
+        [
+          {
+            "node": "Aggregate8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate9": {
+      "main": [
+        [
+          {
+            "node": "Code10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code10": {
+      "main": [
+        [
+          {
+            "node": "YMM: Analyze and Respond1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model19": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM: Analyze and Respond1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code9": {
+      "main": [
+        [
+          {
+            "node": "Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate10": {
+      "main": [
+        [
+          {
+            "node": "Code12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code12": {
+      "main": [
+        [
+          {
+            "node": "Stock Analyze and Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock": {
+      "main": [
+        [
+          {
+            "node": "Aggregate10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Stock Analyze and Response",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Get Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate11": {
+      "main": [
+        [
+          {
+            "node": "Code13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code13": {
+      "main": [
+        [
+          {
+            "node": "YMM or STOCK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "YearMake: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trim: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Trim Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ModelTrim: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Model Trim Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MakeTrim: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Make Trim Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YearTrim: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Year Trim Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Model Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YearModel: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Year Model Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stock Analyze and Response": {
+      "main": [
+        [
+          {
+            "node": "Stock Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM: Analyze and Respond1": {
+      "main": [
+        [
+          {
+            "node": "Year Make Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate14",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "YMM1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YMMT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YMMT1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate12": {
+      "main": [
+        [
+          {
+            "node": "Code14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code14": {
+      "main": [
+        [
+          {
+            "node": "YMM: Analyze and Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model20": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM: Analyze and Respond",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM: Analyze and Respond": {
+      "main": [
+        [
+          {
+            "node": "Year Make Response2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate12",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate13": {
+      "main": [
+        [
+          {
+            "node": "Code15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code15": {
+      "main": [
+        [
+          {
+            "node": "YMM: Analyze and Respond2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model21": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM: Analyze and Respond2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM: Analyze and Respond2": {
+      "main": [
+        [
+          {
+            "node": "Year Make Response3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate14": {
+      "main": [
+        [
+          {
+            "node": "Code16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code16": {
+      "main": [
+        [
+          {
+            "node": "YMM: Analyze and Respond3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model22": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM: Analyze and Respond3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM: Analyze and Respond3": {
+      "main": [
+        [
+          {
+            "node": "Year Make Response4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMMT": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate15": {
+      "main": [
+        [
+          {
+            "node": "Code17",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code17": {
+      "main": [
+        [
+          {
+            "node": "YMM: Analyze and Respond4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model23": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "YMM: Analyze and Respond4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMM: Analyze and Respond4": {
+      "main": [
+        [
+          {
+            "node": "Year Make Response5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YMMT1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt": {
+      "main": [
+        [
+          {
+            "node": "FAQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FAQ": {
+      "main": [
+        [
+          {
+            "node": "Format Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Format Message",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ae19e49a-b1e2-4e0e-907a-16d12d6ae404",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "pcGx4lutN4uzPNDn",
+  "tags": []
+}
